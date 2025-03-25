@@ -1,10 +1,13 @@
 package util;
 
+import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tn.esprit.usergra.entites.JwtUtil;
 import tn.esprit.usergra.entites.Utilisateur;
 import tn.esprit.usergra.entites.enumr.Role;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,31 +16,44 @@ public class JwtUtilTest {
 
     @BeforeEach
     public void setUp() {
-        jwtUtil = new JwtUtil();
-        jwtUtil.init(); // Initialisation de la clé secrète
-        System.out.println("Clé secrète initialisée !");
+        jwtUtil = new JwtUtil(); // ✅ Initialisation correcte
+        System.out.println("🔑 Clé secrète initialisée !");
+    }
+
+    private String extractRole(String token) {
+        Claims claims = jwtUtil.extractAllClaims(token);
+        return claims.get("role", String.class);
     }
 
     @Test
     public void testTokenGenerationAndValidation() {
-        // Création d'un utilisateur fictif
+        // ✅ Création d'un utilisateur fictif
         Utilisateur user = new Utilisateur();
-        user.setEmail("testUser@example.com");
+        user.setUsername("admin");
+        user.setEmail("admin@gmail.com");
+        user.setPassword("sarah123");
         user.setRole(Role.ROLE_ADMIN);
 
-        // Génération du token
+        // ✅ Convertir `Utilisateur` en `UserDetails` car `validateToken` attend un `UserDetails`
+        UserDetails userDetails = User.withUsername(user.getUsername())
+                .password(user.getPassword())
+                .roles(user.getRole().name().replace("ROLE_", "")) // Convertir en format `UserDetails`
+                .build();
+
+        // ✅ Génération du token
         String token = jwtUtil.generateToken(user);
 
-        // Affichage des logs pour le debug
-        System.out.println("Token généré : " + token);
-        System.out.println("Email extrait : " + jwtUtil.extractUsername(token));
-        System.out.println("Rôle extrait : " + jwtUtil.extractRole(token));
-        System.out.println("Validation du Token : " + jwtUtil.validateToken(token, user.getEmail()));
+        // ✅ Affichage des logs pour le debug
+        System.out.println("🟢 Token généré : " + token);
+        System.out.println("📧 Username extrait : " + jwtUtil.extractUsername(token));
+        System.out.println("🔑 Rôle extrait : " + extractRole(token));
 
-        // Vérifications
+        // ✅ Vérifications
         assertNotNull(token, "Le token ne doit pas être null");
-        assertEquals(user.getEmail(), jwtUtil.extractUsername(token), "L'email doit correspondre");
-        assertEquals("ROLE_ADMIN", jwtUtil.extractRole(token), "Le rôle doit être ROLE_ADMIN");
-        assertTrue(jwtUtil.validateToken(token, user.getEmail()), "Le token doit être valide");
+        assertEquals(user.getUsername(), jwtUtil.extractUsername(token), "Le username doit correspondre");
+        assertEquals("ROLE_ADMIN", extractRole(token), "Le rôle doit être ROLE_ADMIN");
+
+        // ✅ Correction : utiliser `userDetails` dans `validateToken`
+        assertTrue(jwtUtil.validateToken(token, userDetails), "Le token doit être valide");
     }
 }

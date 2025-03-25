@@ -4,46 +4,73 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.stereotype.Component;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import tn.esprit.usergra.entites.JwtUtil;
-
 import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
 
+@Component
 public class JwtAuthentificationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserDetailsService userDetailsService;
 
-    public JwtAuthentificationFilter(JwtUtil jwtUtil) {
+    public JwtAuthentificationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
+        this.userDetailsService = userDetailsService;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        final String header = request.getHeader("Authorization");
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
 
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-            try {
-                String username = jwtUtil.extractUsername(token);
-                String role = jwtUtil.extractRole(token);
+        String path = request.getServletPath();
+        System.out.println("🚀 [JWT Filter] Vérification du token pour : " + path);
 
-                if (username != null && role != null) {
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(username, null, List.of(new SimpleGrantedAuthority(role)));
-
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
-            } catch (Exception e) {
-                System.out.println("JWT Invalide : " + e.getMessage());
-            }
+        // ✅ Ignorer Swagger et l'authentification
+        if (path.startsWith("/auth/") || path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
+            System.out.println("✅ [JWT Filter] Ignoré pour " + path);
+            chain.doFilter(request, response);
+            return;
         }
-        filterChain.doFilter(request, response);
-    }
 
+        // 🔑 Vérification du token JWT
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            System.out.println("⚠️ [JWT Filter] Aucun token trouvé pour " + path);
+            chain.doFilter(request, response);
+            return;
+        }
+
+        String token = authHeader.substring(7);
+        System.out.println("🔑 [JWT Filter] Token extrait : " + token);
+
+        String username = jwtUtil.extractUsername(token);
+        System.out.println("🔍 [JWT Filter] Username extrait du token : " + username);
+
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            System.out.println("👤 [JWT Filter] UserDetails récupéré : " + userDetails.getUsername());
+
+            if (jwtUtil.validateToken(token, userDetails)) {
+                System.out.println("✅ [JWT Filter] Token valide !");
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                System.out.println("❌ [JWT Filter] Token invalide !");
+            }
+        } else {
+            System.out.println("⚠️ [JWT Filter] Username est null ou déjà authentifié !");
+        }
+
+        chain.doFilter(request, response);
+    }
 
 }
