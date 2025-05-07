@@ -20,8 +20,9 @@ public class GetwayApplication {
 		return builder.routes()
 				.route("usergra", r -> r.path("/usergra/**")
 						.uri("lb://UserGRA"))  // Utilisation de Eureka pour la découverte
-				.route("ActionnaireGRA",r->r.path("Actionnairegra/**")
-						.uri("lb://ActionnaireGRA"))
+				.route("client", r -> r.path("/client/**")
+						.uri("lb://CLIENT"))
+
 				.build();
 	}
 }

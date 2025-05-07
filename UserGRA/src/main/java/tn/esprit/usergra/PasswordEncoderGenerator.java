@@ -6,9 +6,15 @@ public class PasswordEncoderGenerator {
     public static void main(String[] args) {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-        String rawPassword = "sarah1234"; // Mets ton mot de passe ici
-        String hashedPassword = encoder.encode(rawPassword);
+        String rawPassword = "kiko"; // 🔑 Le mot de passe que tu veux tester
+        String hash = "$2a$10$5k0Ox/RhON70u4x5KOxlV.pWUQlYECYYcEKNgG0ppCYo3rIuLGz.O";
 
-        System.out.println("Mot de passe haché : " + hashedPassword);
+        boolean match = encoder.matches(rawPassword, hash);
+
+        if (match) {
+            System.out.println("✅ Mot de passe valide !");
+        } else {
+            System.out.println("❌ Mot de passe incorrect.");
+        }
     }
 }

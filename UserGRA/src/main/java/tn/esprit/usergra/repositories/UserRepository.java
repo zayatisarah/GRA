@@ -5,15 +5,23 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import tn.esprit.usergra.entites.Groupe;
 import tn.esprit.usergra.entites.Utilisateur;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository <Utilisateur,Long>{
+    @Query("SELECT u FROM Utilisateur u WHERE LOWER(TRIM(u.matricule)) = LOWER(TRIM(:matricule))")
+    Optional<Utilisateur> findByMatricule(@Param("matricule") String matricule);
 
-    @Query("SELECT u FROM Utilisateur u WHERE LOWER(TRIM(u.username)) = LOWER(TRIM(:username))")
-    Optional<Utilisateur> findByUsername(@Param("username") String username);
+
+    @Query("SELECT u FROM Utilisateur u LEFT JOIN FETCH u.groupe LEFT JOIN FETCH u.droits")
+    List<Utilisateur> findAllWithGroupeAndDroits();
+
+    @Query("SELECT u FROM Utilisateur u LEFT JOIN FETCH u.groupe LEFT JOIN FETCH u.droits WHERE u.id = :id")
+    Optional<Utilisateur> findByIdWithRelations(@Param("id") Long id);
 
 
 }

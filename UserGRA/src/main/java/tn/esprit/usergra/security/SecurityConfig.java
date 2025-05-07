@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -26,6 +27,7 @@ public class SecurityConfig {
         this.jwtFilter = jwtFilter;
     }
 
+
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -35,46 +37,51 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable()) // ✅ Désactiver CSRF (nécessaire pour les APIs REST)
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // ✅ API Stateless
-                .httpBasic(httpBasic -> httpBasic.disable()) // ✅ Désactive Basic Auth
-
-                .exceptionHandling(exception -> exception.authenticationEntryPoint((request, response, authException) -> {
-                    System.out.println("⚠️ [Security] Rejeté avec 403 - Authentification requise !");
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
-                }))
-
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .httpBasic(httpBasic -> httpBasic.disable())
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            if (authException instanceof LockedException) {
+                                System.out.println("🔒 Tentative connexion bloquée !");
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Compte bloqué !");
+                            } else {
+                                System.out.println("⚠️ [Security] Rejeté avec 401 - Authentification requise !");
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                            }
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Autoriser l'authentification sans token
+                        // Autorisations publiques
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
 
-                        // ✅ Autoriser Swagger UI et API Docs
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/swagger-ui/index.html",
-                                "/v3/api-docs/**",
-                                "/swagger-resources/**",
-                                "/webjars/**"
-                        ).permitAll()
-
-                        // ✅ Autoriser les requêtes OPTIONS (CORS)
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 🔐 Protéger toutes les autres routes
-                        .requestMatchers("/user/add").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/user/delete/**").permitAll()
-                        .requestMatchers("/user/update/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_RESPONSABLE")
+                        // Accès selon rôles
+                        .requestMatchers("/user/update-password").authenticated()
+                        .requestMatchers("/user/all").permitAll()
+                        .requestMatchers("/admin/reset-password/**").hasAuthority("ROLE_ADMIN")
 
+                        .requestMatchers("/user/add").permitAll() // pour la création initiale
+                        .requestMatchers("/user/delete/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/user/update").hasAnyAuthority("ROLE_ADMIN", "ROLE_RESPONSABLE")
+                        .requestMatchers("/user/toggle-block/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/user/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_RESPONSABLE")
 
-                        .anyRequest().authenticated() // 🔒 Tout le reste nécessite une authentification
+
+                        .requestMatchers(HttpMethod.POST, "/groupe/add").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/groupe/update").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/groupe/delete/**").hasAuthority("ROLE_ADMIN")
+
+
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
@@ -82,17 +89,14 @@ public class SecurityConfig {
     }
 
 
+
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // ✅ Utilisation de allowedOriginPatterns au lieu de allowedOrigins
         configuration.setAllowedOriginPatterns(List.of("*"));
-
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-
-        // ✅ Autorisation des credentials avec une configuration correcte
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -100,6 +104,4 @@ public class SecurityConfig {
 
         return source;
     }
-
-
 }
