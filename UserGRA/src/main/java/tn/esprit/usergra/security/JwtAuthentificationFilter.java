@@ -58,7 +58,7 @@ public class JwtAuthentificationFilter extends OncePerRequestFilter {
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
             if (jwtService.isTokenValid(jwt, userDetails)) {
-                List<String> authoritiesList = jwtService.extractClaim(jwt, claims -> claims.get("authorities", List.class));
+                List<String> authoritiesList = jwtService.extractRoles(jwt);
                 System.out.println("🛡️ Authorities extraites du token : " + authoritiesList);
 
                 List<SimpleGrantedAuthority> authorities = authoritiesList.stream()
@@ -71,7 +71,15 @@ public class JwtAuthentificationFilter extends OncePerRequestFilter {
                         authorities
                 );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                System.out.println("🔐 Comparaison token vs userDetails : "
+                        + username + " == " + userDetails.getUsername());
+                System.out.println("🛡️ Rôles injectés : " + authorities);
+
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                System.out.println("🎯 Authorities dans SecurityContext : " +
+                        SecurityContextHolder.getContext().getAuthentication().getAuthorities());
+                System.out.println("🎯 CONTEXTE AUTH FINAL : " + SecurityContextHolder.getContext().getAuthentication());
+
 
                 System.out.println("✅ Utilisateur authentifié : " + userDetails.getUsername());
             } else {

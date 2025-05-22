@@ -19,6 +19,7 @@ import tn.esprit.usergra.services.UserService;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/groupe")
@@ -96,9 +97,16 @@ public class GroupeController {
 
     // ✅ Récupérer tous les groupes
     @GetMapping("/all")
-    public ResponseEntity<List<Groupe>> getAllGroupes() {
-        return ResponseEntity.ok(groupeService.getAllGroupes());
+    //@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_RESPONSABLE')")
+    public ResponseEntity<List<GroupeDTO>> getAllGroupes() {
+        List<Groupe> groupes = groupeRepository.findAllWithUsersAndRessources();
+        List<GroupeDTO> dtos = groupes.stream()
+                .map(GroupeDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
+
+
 
     // ✅ Rechercher un groupe par nom
     @GetMapping("/find/{nom}")

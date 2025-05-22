@@ -7,6 +7,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,6 +20,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import java.util.List;
 
 @Configuration
+@EnableMethodSecurity
+
 public class SecurityConfig {
 
     private final JwtAuthentificationFilter jwtFilter;
@@ -70,6 +73,7 @@ public class SecurityConfig {
                         .requestMatchers("/user/toggle-block/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/user/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_RESPONSABLE")
 
+                        .requestMatchers(HttpMethod.GET, "/groupe/all").hasAnyAuthority("ROLE_ADMIN", "ROLE_RESPONSABLE")
 
                         .requestMatchers(HttpMethod.POST, "/groupe/add").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/groupe/update").hasAuthority("ROLE_ADMIN")

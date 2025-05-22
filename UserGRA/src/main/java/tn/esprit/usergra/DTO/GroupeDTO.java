@@ -2,38 +2,62 @@ package tn.esprit.usergra.DTO;
 
 import lombok.Getter;
 import lombok.Setter;
+import tn.esprit.usergra.entites.Groupe;
+import tn.esprit.usergra.entites.Habilitation;
+import tn.esprit.usergra.entites.Utilisateur;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
 public class GroupeDTO {
+    private Long id;
     private String nom;
     private List<Long> ressourceIds;
-    private List<Long> utilisateurIds; // ✅ Ajout pour l'affectation des utilisateurs
+    private List<String> ressourcesRouters;
+    private List<Long> utilisateurIds;
+    private List<String> utilisateursMatricules;
+    private List<HabilitationDTO> habilitations;
 
-    // ✅ Si tu veux garder les getters/setters manuels :
-    public String getNom() {
-        return nom;
+    // ✅ Ce constructeur est indispensable pour la désérialisation
+    public GroupeDTO() {
     }
 
-    public void setNom(String nom) {
-        this.nom = nom;
-    }
+    public GroupeDTO(Groupe g) {
+        this.id = g.getId();
+        this.nom = g.getNom();
 
-    public List<Long> getRessourceIds() {
-        return ressourceIds;
-    }
+        if (g.getHabilitations() != null) {
+            this.ressourceIds = g.getHabilitations().stream()
+                    .map(h -> h.getRessource().getId())
+                    .collect(Collectors.toList());
 
-    public void setRessourceIds(List<Long> ressourceIds) {
-        this.ressourceIds = ressourceIds;
-    }
+            this.ressourcesRouters = g.getHabilitations().stream()
+                    .map(h -> h.getRessource().getRouter())
+                    .collect(Collectors.toList());
 
-    public List<Long> getUtilisateurIds() {
-        return utilisateurIds;
-    }
+            this.habilitations = g.getHabilitations().stream()
+                    .map(HabilitationDTO::new)
+                    .collect(Collectors.toList());
+        } else {
+            this.ressourceIds = Collections.emptyList();
+            this.ressourcesRouters = Collections.emptyList();
+            this.habilitations = Collections.emptyList();
+        }
 
-    public void setUtilisateurIds(List<Long> utilisateurIds) {
-        this.utilisateurIds = utilisateurIds;
+        if (g.getUtilisateurs() != null) {
+            this.utilisateurIds = g.getUtilisateurs().stream()
+                    .map(Utilisateur::getId)
+                    .collect(Collectors.toList());
+
+            this.utilisateursMatricules = g.getUtilisateurs().stream()
+                    .map(Utilisateur::getMatricule)
+                    .collect(Collectors.toList());
+        } else {
+            this.utilisateurIds = Collections.emptyList();
+            this.utilisateursMatricules = Collections.emptyList();
+        }
     }
 }

@@ -12,4 +12,10 @@ public interface GroupeRepository extends JpaRepository<Groupe,Long> {
     @Query("SELECT DISTINCT g FROM Groupe g LEFT JOIN FETCH g.habilitations h LEFT JOIN FETCH h.ressource")
     List<Groupe> findAllWithHabilitations();
 
+    @Query("SELECT DISTINCT g FROM Groupe g " +
+            "LEFT JOIN FETCH g.habilitations h " +
+            "LEFT JOIN FETCH h.ressource " +
+            "LEFT JOIN FETCH g.utilisateurs")
+    List<Groupe> findAllWithUsersAndRessources();
+
 }

@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 
 import tn.esprit.usergra.DTO.AuthResponse;
 import tn.esprit.usergra.DTO.LoginRequest;
+import tn.esprit.usergra.DTO.UtilisateurLoginResponseDTO;
+import tn.esprit.usergra.entites.Groupe;
 import tn.esprit.usergra.entites.Utilisateur;
 import tn.esprit.usergra.repositories.UserRepository;
 import tn.esprit.usergra.services.EmailService;
@@ -48,53 +50,58 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        System.out.println("🔍 Tentative de connexion avec : " + request.getMatricule());
+    public ResponseEntity<UtilisateurLoginResponseDTO> login(@RequestBody LoginRequest request) {
+        Utilisateur user = userRepository.findByMatricule(request.getMatricule())
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
-        try {
-            System.out.println("🔑 AuthManager - Authentification...");
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getMatricule(), request.getPassword())
-            );
-
-            System.out.println("✅ Authentifié !");
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
-            System.out.println("🔍 Recherche user en base : " + userDetails.getUsername());
-            Optional<Utilisateur> optionalUser = userRepository.findByMatricule(userDetails.getUsername());
-
-            if (optionalUser.isEmpty()) {
-                System.out.println("❌ Utilisateur non trouvé !");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Utilisateur non trouvé !");
-            }
-
-            Utilisateur user = optionalUser.get();
-            Map<String, Object> claims = new HashMap<>();
-            claims.put("authorities", List.of(user.getRole().name()));
-            claims.put("firstLogin", user.isFirstLogin());
-
-            System.out.println("🛡️ Génération token...");
-            String token = jwtService.generateToken(claims, user);
-            System.out.println("🪪 Token généré : " + token);
-
-            return ResponseEntity.ok(
-                    new AuthResponse(token, user.getMatricule(), user.getRole().name(), user.isFirstLogin())
-            );
-
-        } catch (Exception e) {
-            e.printStackTrace(); // 🔍 Pour voir l'erreur complète dans ta console backend
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erreur serveur : " + e.getMessage()); // 🔔 Le message est aussi renvoyé au front
+        // ❌ Vérifie si le compte est actif
+        if (!user.isActif()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(null); // ou un DTO avec un message comme "Compte désactivé"
         }
 
+        // 🛡️ Vérifie le mot de passe
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
 
+        String token = jwtService.generateToken(user);
+
+        UtilisateurLoginResponseDTO response = new UtilisateurLoginResponseDTO();
+        response.setToken(token);
+        response.setMatricule(user.getMatricule());
+        response.setRole(user.getRole().name());
+        response.setFirstLogin(user.isFirstLogin());
+
+        Groupe groupe = user.getGroupe();
+        if (groupe != null) {
+            UtilisateurLoginResponseDTO.GroupeDTO groupeDTO = new UtilisateurLoginResponseDTO.GroupeDTO();
+            groupeDTO.setNom(groupe.getNom());
+
+            List<UtilisateurLoginResponseDTO.HabilitationDTO> habilitationDTOs = groupe.getHabilitations().stream()
+                    .map(h -> {
+                        UtilisateurLoginResponseDTO.HabilitationDTO hDTO = new UtilisateurLoginResponseDTO.HabilitationDTO();
+                        UtilisateurLoginResponseDTO.RessourceDTO rDTO = new UtilisateurLoginResponseDTO.RessourceDTO();
+                        rDTO.setNom(h.getRessource().getNom());
+                        rDTO.setRouter(h.getRessource().getRouter());
+                        hDTO.setRessource(rDTO);
+                        return hDTO;
+                    })
+                    .toList();
+
+            groupeDTO.setHabilitations(habilitationDTOs);
+            response.setGroupe(groupeDTO);
+        }
+
+        return ResponseEntity.ok(response);
     }
+
 
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
         String matricule = request.get("matricule");
 
-        Utilisateur user = userRepository.findByMatricule(matricule)
+        Utilisateur user = userRepository.findByMatriculeWithFullAccess(matricule)
                 .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé"));
 
         // ⚠️ Ne rien modifier ici dans la base de données !

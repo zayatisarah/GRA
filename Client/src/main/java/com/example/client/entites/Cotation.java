@@ -26,6 +26,6 @@ public class Cotation {
 
 
     @ManyToOne
-    @JoinColumn(name = "IDACTIONS", nullable = false) // 🔁 nom exact de ta colonne Oracle
+    @JoinColumn(name = "IDACTIONS", nullable = false)
     private Action action;
 }

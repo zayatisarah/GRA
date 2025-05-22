@@ -2,6 +2,7 @@ package tn.esprit.usergra.services.imp;
 
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -30,7 +31,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         // 🔒 Bloquer si inactif
         if (!user.isActif()) {
-            throw new LockedException("Compte bloqué !");
+            throw new DisabledException("❌ Compte désactivé !");
         }
 
         return org.springframework.security.core.userdetails.User

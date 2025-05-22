@@ -24,17 +24,22 @@ public class JwtService {
     }
 
     // 🔐 Génération du token
-    public String generateToken(Map<String, Object> extraClaims, Utilisateur user) {
-        extraClaims.put("authorities", List.of(user.getRole().name()));
+    public String generateToken(Utilisateur user) {
+        Map<String, Object> extraClaims = Map.of(
+                "authorities", List.of(user.getRole().name()),
+                "firstLogin", user.isFirstLogin(),
+                "matricule", user.getMatricule()
+        );
 
         return Jwts.builder()
                 .setClaims(extraClaims)
                 .setSubject(user.getMatricule())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10h
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
+
 
 
     // ✅ Extraction du "subject" (le matricule)
@@ -44,12 +49,27 @@ public class JwtService {
 
 
     // ✅ Extraction des rôles (optionnel)
-    public String extractRole(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.get("role", String.class); // ou "roles"
+    public List<String> extractRoles(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            Object rawAuthorities = claims.get("authorities");
+
+            if (rawAuthorities instanceof List<?>) {
+                return ((List<?>) rawAuthorities).stream()
+                        .map(Object::toString)
+                        .toList();
+            } else {
+                return List.of();
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Erreur lors de l'extraction des rôles : " + e.getMessage());
+            return List.of();
+        }
     }
 
-    // ✅ Extraction d'un champ précis
+
+
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
@@ -75,9 +95,6 @@ public class JwtService {
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
-    public String extractRoles(String token) {
-        return extractClaim(token, claims -> claims.get("role", String.class));
-    }
 
 
     public boolean isTokenValid(String jwt, UserDetails userDetails) {

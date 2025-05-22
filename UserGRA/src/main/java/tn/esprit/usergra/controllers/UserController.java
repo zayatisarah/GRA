@@ -30,6 +30,7 @@ import tn.esprit.usergra.services.UserService;
 import tn.esprit.usergra.DTO.userDTO;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -98,8 +99,10 @@ private final JwtService jwtService;
 
     // ✅ Récupérer tous les utilisateurs
     @GetMapping("/all")
-    public List<Utilisateur> getAllUsers() {
-        return userRepository.findAllWithGroupeAndDroits();
+    public ResponseEntity<List<userDTO>> getAllUsers() {
+        List<Utilisateur> users = userRepository.findAllWithGroupeAndDroits(); // avec LEFT JOIN FETCH
+        List<userDTO> dtos = users.stream().map(userDTO::new).collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     // ✅ Récupérer un utilisateur par ID

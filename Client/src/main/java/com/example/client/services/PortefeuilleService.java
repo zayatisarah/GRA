@@ -9,5 +9,6 @@ public interface PortefeuilleService {
     Portefeuille deletePortefeuille(Long id);
     List<Portefeuille> getALLPortfeuille();
     Portefeuille updatePorteFeuille (Portefeuille portefeuille);
+
 }
 

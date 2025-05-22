@@ -1,5 +1,6 @@
 package com.example.client.entites;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -22,13 +23,17 @@ public class Actionnaire {
     @Column(name = "ID_ACTIONNAIRE")
     private Long idActionnaire;
 
+    @Column(unique = true) // Pour éviter les doublons
+    private String matriculeActionnaire;
+
+
     @Column(name = "NOM_ACTIONNAIRE", nullable = false)
     private String nomActionnaire;
 
-    @Column(name = "PRENOM_ACTIONNAIRE", nullable = false)
+    @Column(name = "PRENOM_ACTIONNAIRE", nullable = true)
     private String prenomActionnaire;
 
-    @Column(name = "EMAIL_ACTIONNAIRE", nullable = false)
+    @Column(name = "EMAIL_ACTIONNAIRE", nullable = true)
     private String emailActionnaire;
 
     @Column(name = "TELEPHONE", nullable = false)
@@ -47,6 +52,8 @@ public class Actionnaire {
     private String userModification;
 
     @OneToMany(mappedBy = "actionnaire")
+    @JsonIgnoreProperties("actionnaire")
+
     private List<Portefeuille> portefeuilles;
     public Long getIdActionnaire() {
         return idActionnaire;
@@ -62,6 +69,14 @@ public class Actionnaire {
 
     public void setNomActionnaire(String nomActionnaire) {
         this.nomActionnaire = nomActionnaire;
+    }
+
+    public String getMatriculeActionnaire() {
+        return matriculeActionnaire;
+    }
+
+    public void setMatriculeActionnaire(String matriculeActionnaire) {
+        this.matriculeActionnaire = matriculeActionnaire;
     }
 
     public String getPrenomActionnaire() {
@@ -118,6 +133,9 @@ public class Actionnaire {
 
     public void setUserModification(String userModification) {
         this.userModification = userModification;
+    }
+
+    public void setMatricule(String numeroActionnaire) {
     }
 }
 
